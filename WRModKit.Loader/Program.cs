@@ -12,7 +12,6 @@ namespace WRModKit.Loader;
 public sealed class LoaderConfig
 {
     public string GameAssembly { get; set; } = "Worldwide Rush.dll";
-    public string ModsDirectory { get; set; } = "Mods";
     public bool InstallBridge { get; set; } = true;
     public bool RedirectStateLog { get; set; } = true;
     public bool EnableConsole { get; set; } = true;
@@ -20,6 +19,14 @@ public sealed class LoaderConfig
     public string FileLogPath { get; set; } = "Logs/modloader.log";
     public string[]? EnabledMods { get; set; } = null;
     public Dictionary<string,string>? LogLevels { get; set; } = null;
+    public LoaderConfig() { }
+
+    public LoaderConfig(string path)
+    {
+        var opt = new JsonSerializerOptions { WriteIndented = true };
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        File.WriteAllText(path, JsonSerializer.Serialize(this, opt));
+    }
 }
 
 internal static class Program
@@ -35,10 +42,12 @@ internal static class Program
             var baseDir = AppContext.BaseDirectory;
             Directory.SetCurrentDirectory(baseDir);
 
-            var cfgPath = Path.Combine(baseDir, "ModLoader.json");
+            Directory.CreateDirectory(Path.Combine(baseDir, "config"));
+            
+            var cfgPath = Path.Combine(baseDir, "config", "ModLoader.json");
             var cfg = File.Exists(cfgPath)
-                ? JsonSerializer.Deserialize<LoaderConfig>(File.ReadAllText(cfgPath)) ?? new LoaderConfig()
-                : new LoaderConfig();
+                ? JsonSerializer.Deserialize<LoaderConfig>(File.ReadAllText(cfgPath)) ?? new LoaderConfig(cfgPath)
+                : new LoaderConfig(cfgPath);
 
             if (cfg.EnableConsole && RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
                 if (GetConsoleWindow() == IntPtr.Zero) AllocConsole();
@@ -64,8 +73,7 @@ internal static class Program
             loaderLog.Info("=== WRModKit.Loader start ===");
             loaderLog.Info("Target game: Worldwide Rush");
 
-            var cfgRoot = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-                                       "Worldwide Rush", "ModLoader");
+            var cfgRoot = Path.Combine(baseDir, "config");
             var cfgService = new ConfigService(cfgRoot);
 
             var gamePath = Path.GetFullPath(Path.Combine(baseDir, cfg.GameAssembly));
@@ -88,7 +96,7 @@ internal static class Program
                 .ToArray();
 
             // Keep your mods/<id>/libs fallback
-            var modsDir = Path.Combine(baseDir, cfg.ModsDirectory);
+            var modsDir = Path.Combine(baseDir, "mods");
             Directory.CreateDirectory(modsDir);
             var modLibDirs = Directory.GetDirectories(modsDir)
                                       .Select(d => Path.Combine(d, "libs"))

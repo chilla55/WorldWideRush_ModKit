@@ -32,7 +32,7 @@ public sealed class ConfigService
         var key = $"{modId}:{fileName ?? "config.json"}";
         return (IConfigSection<T>)_cache.GetOrAdd(key, _ =>
         {
-            var dir = Path.Combine(_root, "Mods", modId);
+            var dir = Path.Combine(_root, modId);
             Directory.CreateDirectory(dir);
             var path = Path.Combine(dir, fileName ?? "config.json");
             return new ConfigSection<T>(path, _json);
